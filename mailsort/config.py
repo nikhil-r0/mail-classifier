@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
 
-# Hugging Face Configuration
+# Local cached reference checkpoint (offline)
 MAILSORT_MODEL_REPO_ID = os.getenv("MAILSORT_MODEL_REPO_ID", "jason23322/high-accuracy-email-classifier")
 HF_HUB_CACHE = os.getenv("HF_HUB_CACHE", str(BASE_DIR / ".hfcache"))
 MAILSORT_MODEL_DIR = os.getenv("MAILSORT_MODEL_DIR", "")

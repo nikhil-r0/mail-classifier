@@ -575,7 +575,7 @@ def load_or_create_dataset(
 ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
     Loads raw email data or initializes the documented curated starter dataset.
-    If the companion Hugging Face dataset (data/dataset/train.csv) is available,
+    If the companion dataset (data/dataset/train.csv) is available,
     it maps 'promotions' and 'spam' from it and blends with authentic 'Primary' emails.
     Performs data cleaning, deduplication, and stratified train/val/test splits.
     Saves splits to output_dir (defaults to data/processed).
@@ -594,11 +594,11 @@ def load_or_create_dataset(
         # Extract promotions and spam from companion dataset
         promos = ds_train_df[ds_train_df["category"] == "promotions"][["subject", "body"]].copy()
         promos["label"] = "Promotions"
-        promos["source"] = "hf_email_classification_dataset"
+        promos["source"] = "companion_email_dataset"
 
         spams = ds_train_df[ds_train_df["category"] == "spam"][["subject", "body"]].copy()
         spams["label"] = "Spam"
-        spams["source"] = "hf_email_classification_dataset"
+        spams["source"] = "companion_email_dataset"
 
         # Extract authentic Primary emails from curated reference dataset
         primary_list = [d for d in STARTER_DATASET if d["label"] == "Primary"]

@@ -10,12 +10,13 @@ from mailsort.config import (
     TARGET_CATEGORIES,
     FALLBACK_CATEGORY
 )
-from mailsort.model_loader import resolve_hf_file, load_baseline_model, load_custom_model
+from mailsort.model_loader import resolve_cached_model_file, load_baseline_model, load_custom_model
 from mailsort.inference import classify_email, classify_batch
 
-def test_resolve_hf_file_cached():
-    # Resolves cached tokenizer config via huggingface_hub
-    tok_path = resolve_hf_file(MAILSORT_MODEL_REPO_ID, "high_accuracy_tokenizer_config.json")
+def test_resolve_cached_model_file():
+    tok_path = resolve_cached_model_file(
+        MAILSORT_MODEL_REPO_ID, "high_accuracy_tokenizer_config.json"
+    )
     assert tok_path.is_file()
     assert tok_path.name == "high_accuracy_tokenizer_config.json"
 

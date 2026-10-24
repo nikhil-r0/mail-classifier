@@ -83,7 +83,7 @@ def text_to_padded_sequence(
     oov_token_index: int = 1
 ) -> np.ndarray:
     """
-    Tokenizes text and pads or truncates to max_len (matching the baseline model input).
+    Tokenizes text and pads or truncates to max_len (6-class neural model input shape).
     """
     cleaned = clean_text(text)
     words = cleaned.split()

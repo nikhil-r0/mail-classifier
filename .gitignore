@@ -5,7 +5,7 @@ __pycache__/
 .pytest_cache/
 *.egg-info/
 
-# Large model files & Hugging Face Hub cache
+# Large model files & local weight cache
 .hfcache/
 *.h5
 *.tflite
@@ -15,7 +15,7 @@ artifacts/*.joblib
 # Private environment variables
 .env
 
-# Large datasets & generated splits (downloaded via huggingface-cli / scripts)
+# Large datasets & generated splits
 data/dataset/
 data/processed/
 data/raw/
