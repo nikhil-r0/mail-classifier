@@ -1,276 +1,206 @@
----
-title: High-Accuracy Email Classifier
-emoji: 📧
-colorFrom: blue
-colorTo: green
-sdk: tensorflow
-sdk_version: 2.19.0
-app_file: app.py
-pinned: false
-license: apache-2.0
-tags:
-- email-classification
-- text-classification
-- cnn-gru
-- edge-deployment
-- tflite
-language:
-- en
-metrics:
-- accuracy
-- precision
-- recall
-- f1
-pipeline_tag: text-classification
-widget:
-- text: "Congratulations! You've won $1000! Click here to claim your prize!"
-  example_title: "Spam Email"
-- text: "Your verification code is 123456. Please enter this code to complete your login."
-  example_title: "Verification Code"
-- text: "New reply posted in the Python Programming forum."
-  example_title: "Forum Notification"
-- text: "Flash Sale! 50% off all items. Limited time offer!"
-  example_title: "Promotional Email"
-- text: "You have 5 new notifications on Facebook."
-  example_title: "Social Media"
-- text: "Security update available for your system."
-  example_title: "System Update"
+# MailSort — NLP Email Classification System
+
+[![Python 3.12+](https://img.shields.io/badge/python-3.12%20%7C%203.14-blue.svg)](https://www.python.org/)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Course](https://img.shields.io/badge/Course-BIC703%20Machine%20Learning-orange.svg)](https://bit-bangalore.edu.in)
+[![Tests](https://img.shields.io/badge/Tests-15%20Passing-brightgreen.svg)]()
+[![Model Accuracy](https://img.shields.io/badge/Test%20Accuracy-98.08%25-success.svg)]()
+
+**MailSort** is a standalone, offline Natural Language Processing email classification application developed for the **BIC703 Machine Learning** course assignment (VII Semester, Department of Computer Science & Engineering, Bangalore Institute of Technology).
+
+The application classifies email subject and body into Gmail-inspired target categories:
+- **Primary** — Personal, academic, and direct workplace correspondence.
+- **Promotions** — Marketing offers, discounts, clearance sales, and newsletters.
+- **Spam** — Phishing attacks, lottery scams, extortion, and fraudulent solicitations.
+- **Other / Needs review** — Ambiguous messages, low-confidence predictions, or lossy mappings from baseline categories.
+
 ---
 
-# High-Accuracy Email Classifier
+## 1. System Architecture & Model Modes
 
-## Model Description
+MailSort supports two distinct models to demonstrate transparent evaluation and compliance with academic constraints:
 
-This is a high-accuracy email classification model trained to categorize emails into 6 distinct categories with 98%+ accuracy. The model uses a sophisticated CNN+GRU architecture with multi-head attention, specifically designed for edge deployment scenarios.
+1. **Project-Owned Model (Default / Active):**
+   - **Type:** Scikit-Learn TF-IDF (1-2 ngrams) + Regularized Linear Classifier with balanced class weights.
+   - **Ownership:** Built and trained strictly from scratch by our project pipeline (`training/train.py`).
+   - **Target Labels:** Native `Primary`, `Promotions`, and `Spam`.
+   - **Performance:** **98.08% Test Accuracy**, **98.79% Macro Precision**, **98.66% Macro F1** on held-out test data; **98.33% Accuracy** across 898 companion test emails.
+   - **Footprint:** Pure CPU, sub-2ms inference latency, zero heavy framework dependencies.
 
-## Categories
+2. **External Reference Checkpoint (Baseline):**
+   - **Origin:** Pre-trained Hugging Face checkpoint ([`jason23322/high-accuracy-email-classifier`](https://huggingface.co/jason23322/high-accuracy-email-classifier)).
+   - **Architecture:** Multi-scale CNN + Bidirectional GRU + Multi-Head Attention.
+   - **6 Output Labels:** `forum`, `promotions`, `social_media`, `spam`, `updates`, `verify_code`.
+   - **Limitation:** Contains **no Primary class**. In baseline mode, `forum`, `social_media`, `updates`, and `verify_code` are mapped to **`Other / Needs review`** and marked as lossy.
 
-The model classifies emails into the following categories:
+---
 
-1. **📱 Social Media** - Notifications from social platforms (Facebook, Instagram, Twitter, etc.)
-2. **🛒 Promotions** - Marketing emails, sales, offers, and advertisements  
-3. **🗣️ Forum** - Forum posts, discussions, and community notifications
-4. **⚠️ Spam** - Unwanted emails, scams, and phishing attempts
-5. **🔐 Verify Code** - Authentication codes and verification emails
-6. **🔄 Updates** - System updates, security patches, and maintenance notices
+## 2. Dataset & Model Download Instructions
 
-## Model Architecture
+MailSort is designed to operate completely offline. Pre-trained checkpoints and large datasets are kept out of git tracking (via `.gitignore`) and can be downloaded using the Hugging Face CLI or Python script.
 
-- **Base Architecture**: CNN + Bidirectional GRU with Multi-Head Attention
-- **Vocabulary Size**: 25,000 words
-- **Sequence Length**: 250 tokens
-- **Embedding Dimension**: 300
-- **Model Size**: 94MB (H5), 7.9MB (TFLite)
+### A. Download the Reference Checkpoint (Model)
+To download the companion model weights (`best_high_accuracy_model.h5`, `high_accuracy_email_classifier.tflite`, and tokenizer JSON) into `.hfcache`:
 
-### Architecture Details
+**Using Hugging Face CLI:**
+```bash
+# Ensure huggingface_hub is installed
+pip install huggingface_hub
 
-```
-Input Layer (250,) 
-    ↓
-Embedding Layer (25000 → 300)
-    ↓
-Multi-scale CNN (kernels: 3, 4, 5)
-    ↓
-Bidirectional GRU (256 units)
-    ↓
-Multi-Head Attention (8 heads)
-    ↓
-Dense Layers + Dropout
-    ↓
-Output Layer (6 classes)
+# Download model into local cache
+huggingface-cli download jason23322/high-accuracy-email-classifier --cache-dir .hfcache
 ```
 
-## Performance
-
-- **Training Accuracy**: 98.13%
-- **Validation Accuracy**: 98%+
-- **Model Size**: 94MB (H5 format), 7.9MB (TFLite)
-- **Inference Speed**: Optimized for mobile/edge deployment
-
-## Quick Start
-
-### Loading the Model
-
+**Using Python:**
 ```python
-import tensorflow as tf
-import json
-import numpy as np
-from tensorflow.keras.preprocessing.sequence import pad_sequences
+from huggingface_hub import snapshot_download
 
-# Load the model
-model = tf.keras.models.load_model('best_high_accuracy_model.h5')
-
-# Load tokenizer configuration
-with open('high_accuracy_tokenizer_config.json', 'r') as f:
-    config = json.load(f)
-
-categories = config['categories']
-word_index = config['word_index']
-max_len = config['max_len']
+snapshot_download(
+    repo_id="jason23322/high-accuracy-email-classifier",
+    cache_dir=".hfcache",
+    local_files_only=False
+)
 ```
 
-### Preprocessing Function
+### B. Download the Companion Dataset (13,477 Emails)
+The companion dataset ([`jason23322/email-classification-dataset`](https://huggingface.co/datasets/jason23322/email-classification-dataset)) contains 13,477 emails across 6 categories (10,780 train, 2,697 test):
 
+**Using Hugging Face CLI:**
+```bash
+huggingface-cli download --repo-type dataset jason23322/email-classification-dataset --local-dir data/dataset
+```
+
+**Using Python:**
 ```python
-import re
+from huggingface_hub import snapshot_download
 
-def preprocess_text(text):
-    """Preprocess text exactly as done during training"""
-    # Convert to lowercase
-    text = text.lower()
-    
-    # Replace URLs
-    text = re.sub(r'http[s]?://\S+', 'URL', text)
-    text = re.sub(r'www\.\S+', 'URL', text)
-    
-    # Replace email addresses
-    text = re.sub(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', 'EMAIL', text)
-    
-    # Replace numbers
-    text = re.sub(r'\b\d+\b', 'NUMBER', text)
-    
-    # Remove punctuation
-    text = re.sub(r'[^\w\s]', ' ', text)
-    
-    # Remove extra spaces
-    text = ' '.join(text.split())
-    
-    return text
-
-def text_to_sequence(text, word_index, max_len):
-    """Convert text to padded sequence"""
-    words = text.split()
-    sequence = [word_index.get(word, 1) for word in words]  # 1 is OOV token
-    return pad_sequences([sequence], maxlen=max_len, padding='post', truncating='post')
+snapshot_download(
+    repo_id="jason23322/email-classification-dataset",
+    repo_type="dataset",
+    local_dir="data/dataset",
+    local_dir_use_symlinks=False
+)
 ```
 
-### Making Predictions
+> **Automatic Detection:** MailSort automatically checks for `data/dataset/train.csv`. When present, `training/train.py` integrates the companion dataset's verified `promotions` and `spam` records with authentic `Primary` emails. If the dataset has not been downloaded, the pipeline gracefully falls back to the curated reference dataset.
 
-```python
-def predict_email_category(text, model, word_index, categories, max_len):
-    """Predict email category with confidence scores"""
-    # Preprocess text
-    processed_text = preprocess_text(text)
-    
-    # Convert to sequence
-    sequence = text_to_sequence(processed_text, word_index, max_len)
-    
-    # Get prediction
-    prediction = model.predict(sequence, verbose=0)
-    probabilities = prediction[0]
-    
-    # Get predicted class
-    predicted_idx = np.argmax(probabilities)
-    predicted_category = categories[predicted_idx]
-    confidence = probabilities[predicted_idx]
-    
-    # Return all probabilities
-    results = {
-        'predicted_category': predicted_category,
-        'confidence': float(confidence),
-        'all_probabilities': {
-            category: float(prob) 
-            for category, prob in zip(categories, probabilities)
-        }
-    }
-    
-    return results
+---
 
-# Example usage
-email_text = "Your verification code is 123456. Please enter this code."
-result = predict_email_category(email_text, model, word_index, categories, max_len)
-print(f"Category: {result['predicted_category']}")
-print(f"Confidence: {result['confidence']:.4f}")
+## 3. Quick Start & Setup
+
+### Environment Requirements
+- **Tested Python Versions:** Python 3.12+ (tested up to Python 3.14.4 on Ubuntu Linux).
+- **Environment:** Standalone local execution without GPU requirement.
+
+### Installation
+```bash
+# 1. Activate virtual environment
+source .venv/bin/activate
+
+# 2. Install dependencies
+pip install -r requirements.txt
 ```
 
-## TFLite Mobile Deployment
-
-For mobile/edge deployment, use the optimized TFLite version:
-
-```python
-import tensorflow as tf
-
-# Load TFLite model
-interpreter = tf.lite.Interpreter(model_path='high_accuracy_email_classifier.tflite')
-interpreter.allocate_tensors()
-
-# Get input/output details
-input_details = interpreter.get_input_details()
-output_details = interpreter.get_output_details()
-
-def predict_tflite(text, interpreter, word_index, categories, max_len):
-    """Predict using TFLite model"""
-    # Preprocess and convert to sequence
-    processed_text = preprocess_text(text)
-    sequence = text_to_sequence(processed_text, word_index, max_len)
-    
-    # Run inference
-    interpreter.set_tensor(input_details[0]['index'], sequence.astype(np.float32))
-    interpreter.invoke()
-    
-    # Get output (already softmax probabilities)
-    output_data = interpreter.get_tensor(output_details[0]['index'])
-    probabilities = output_data[0]
-    
-    predicted_idx = np.argmax(probabilities)
-    return categories[predicted_idx], probabilities
+### Configuration (`.env`)
+Copy `.env.example` to `.env`:
+```bash
+cp .env.example .env
 ```
 
-## Training Details
+Default configuration in `.env`:
+```dotenv
+# Actual owner/repository on Hugging Face Hub
+MAILSORT_MODEL_REPO_ID=jason23322/high-accuracy-email-classifier
 
-### Data Augmentation
-- Synonym replacement
-- Random word deletion  
-- Word position swapping
-- Contextual word insertion
+# Root of the Hugging Face Hub cache
+HF_HUB_CACHE=/mnt/extra-maal/mail-classifier/.hfcache
 
-### Advanced Techniques
-- Multi-scale CNN filters (3, 4, 5)
-- Bidirectional GRU with attention
-- Class weight balancing
-- Cosine annealing learning rate
-- Early stopping with patience
+# Optional direct directory if files were downloaded using --local-dir
+MAILSORT_MODEL_DIR=
 
-### Preprocessing
-- URL/Email/Number standardization
-- Punctuation removal
-- Case normalization
-- OOV token handling
+# Application mode: 'auto' (default: custom 3-class model), 'custom', or 'baseline'
+MAILSORT_MODEL_MODE=auto
 
-## Files Included
-
-- `best_high_accuracy_model.h5` - Main Keras model (94MB)
-- `high_accuracy_email_classifier.tflite` - Mobile-optimized TFLite model (7.9MB)
-- `high_accuracy_tokenizer_config.json` - Tokenizer configuration and word mappings
-- `android_config.json` - Mobile deployment configuration
-- `confusion_matrix.png` - Model performance visualization
-
-## Requirements
-
-```
-tensorflow>=2.19.0
-numpy>=1.21.0
-scikit-learn>=1.0.0
-matplotlib>=3.5.0
-seaborn>=0.11.0
+# Offline mode (prevents unnecessary network calls during inference)
+HF_HUB_OFFLINE=1
 ```
 
-## License
+---
 
-This model is released under the Apache 2.0 License.
+## 4. Running the Application
 
-## Citation
-
-```bibtex
-@misc{high_accuracy_email_classifier,
-  title={High-Accuracy Email Classifier with CNN-GRU Architecture},
-  author={Email Classification Team},
-  year={2024},
-  publisher={Hugging Face},
-  url={https://huggingface.co/your-username/high-accuracy-email-classifier}
-}
+Launch the Streamlit web application:
+```bash
+streamlit run app.py
 ```
 
-## Model Card Contact
+The web dashboard features:
+- **Single Email Classifier:** Manual Subject and Body inputs with quick preset sample buttons.
+- **Batch CSV Classification:** Upload any CSV file, map columns, and export results with exact row-order preservation.
+- **Model Architecture & Evaluation:** Live display of measured test metrics, per-class F1-scores, and confusion matrix image.
+- **Academic Integrity Statement:** Full transparency on data provenance, label mapping, and external checkpoint attribution.
 
-For questions and issues, please open an issue in the repository or contact the model authors. 
+---
+
+## 5. Running Tests
+
+Run the full automated test suite:
+```bash
+pytest tests/
+```
+All **15 unit tests** cover:
+- Text standardization and entity tokens (`URL`, `EMAIL`, `NUMBER`).
+- Padding, truncation, and out-of-vocabulary handling.
+- Honest label mapping (ensuring non-spam/non-promotions labels are never falsely called Primary).
+- Offline Hugging Face Hub cache resolution.
+- Batch classification row ordering and empty input fallbacks.
+- Test accuracy verification on the companion dataset (>90% requirement).
+
+---
+
+## 6. Training & Evaluation Pipeline
+
+To retrain the project-owned classifier and evaluate on the held-out test split:
+```bash
+python training/train.py
+```
+This script:
+1. Detects `data/dataset/train.csv` (or uses `STARTER_DATASET` fallback).
+2. Standardizes text and deduplicates identical messages.
+3. Produces stratified train, validation, and test splits in `data/processed/`.
+4. Fits the TF-IDF and regularized linear classifier strictly on training data.
+5. Serializes the pipeline to `artifacts/mailsort_model.joblib`.
+6. Evaluates on the held-out test split and writes `reports/metrics.json` and `reports/confusion_matrix.png`.
+
+---
+
+## 7. Measured Evaluation Results
+
+Evaluated on the held-out test partition (104 samples, 0% test leakage):
+
+| Metric | Measured Value |
+|---|---|
+| **Overall Accuracy** | **98.08%** |
+| **Macro Precision** | **98.79%** |
+| **Macro Recall** | **98.58%** |
+| **Macro F1-Score** | **98.66%** |
+| **Weighted F1-Score** | **98.07%** |
+
+### Per-Class Metrics:
+- **Primary:** Precision: `100.0%` | Recall: `100.0%` | F1: `100.0%` (Support: 4)
+- **Promotions:** Precision: `100.0%` | Recall: `95.74%` | F1: `97.83%` (Support: 47)
+- **Spam:** Precision: `96.36%` | Recall: `100.0%` | F1: `98.15%` (Support: 53)
+
+### Companion Test Set Evaluation:
+- **Full Companion Test Set (`data/dataset/test.csv`):** **98.33% Accuracy** across 898 promotions and spam test emails.
+
+---
+
+## 8. Academic Integrity & License
+
+This project is developed for the **BIC703 Machine Learning** course assignment at Bangalore Institute of Technology.
+
+- **Checkpoint Attribution:** The baseline CNN-GRU model and dataset are external artifacts created by `jason23322` under Apache 2.0 license.
+- **No Synthetic Metrics:** All reported metrics represent empirical evaluation results generated by `training/evaluate.py`.
+- **Offline Guarantee:** Inference executes locally without sending data to external APIs.
+- **License:** Apache License 2.0.

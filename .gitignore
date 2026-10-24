@@ -1,0 +1,21 @@
+# Virtual environment & caches
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+
+# Large model files & Hugging Face Hub cache
+.hfcache/
+*.h5
+*.tflite
+*.joblib
+artifacts/*.joblib
+
+# Private environment variables
+.env
+
+# Large datasets & generated splits (downloaded via huggingface-cli / scripts)
+data/dataset/
+data/processed/
+data/raw/
