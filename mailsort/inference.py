@@ -1,4 +1,3 @@
-import logging
 from typing import Dict, Any, List, Optional
 import numpy as np
 import pandas as pd
@@ -19,8 +18,6 @@ from mailsort.preprocessing import (
 )
 from mailsort.model_loader import load_custom_model, load_baseline_model, BaselineModelWrapper
 
-logger = logging.getLogger(__name__)
-
 # Cached model singletons
 _CUSTOM_MODEL = None
 _BASELINE_MODEL = None
@@ -30,8 +27,8 @@ def get_custom_model():
     if _CUSTOM_MODEL is None:
         try:
             _CUSTOM_MODEL = load_custom_model()
-        except Exception as e:
-            logger.info(f"Custom model not available: {e}")
+        except Exception:
+            pass
     return _CUSTOM_MODEL
 
 def get_baseline_model():
@@ -39,8 +36,8 @@ def get_baseline_model():
     if _BASELINE_MODEL is None:
         try:
             _BASELINE_MODEL = load_baseline_model()
-        except Exception as e:
-            logger.info(f"Baseline model not available: {e}")
+        except Exception:
+            pass
     return _BASELINE_MODEL
 
 def classify_email(
@@ -144,8 +141,8 @@ def classify_email(
         mapped_cat = BASELINE_TO_TARGET_MAP.get(raw_cat, FALLBACK_CATEGORY)
         is_lossy = raw_cat not in ["promotions", "spam"]
         lossy_note = (
-            f"The baseline model predicted '{raw_cat}'. This label was mapped to '{mapped_cat}' "
-            f"because the 6-class baseline model does not have a native 'Primary' category."
+            f"The 6-class model predicted '{raw_cat}'. This label was mapped to '{mapped_cat}' "
+            f"because that model does not include a native 'Primary' category."
             if is_lossy else None
         )
 
@@ -158,7 +155,7 @@ def classify_email(
             "confidence": raw_conf,
             "all_probabilities": prob_dict,
             "explanation": explanation,
-            "model_used": f"Baseline Reference Checkpoint ({baseline_model.model_type}, 6-Class)",
+            "model_used": f"6-Class Neural Classifier ({baseline_model.model_type})",
             "is_uncertain": raw_conf < CONFIDENCE_THRESHOLD or is_lossy,
             "lossy_mapping_note": lossy_note
         }

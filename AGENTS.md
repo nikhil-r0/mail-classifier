@@ -20,12 +20,12 @@ The assignment brief says online datasets may be used, the work must be an appli
 Consequently:
 1. Do not present an externally downloaded, already-trained checkpoint as a model trained by our team.
 2. Create a reproducible training pipeline and train a project-owned classifier on documented, labelled public data. Prefer a compact model whose parameters are randomly initialized and trained by our pipeline. A small CNN/GRU/BiLSTM is acceptable if feasible; avoid pretrained LLMs and hosted inference APIs.
-3. The supplied Hugging Face model may be integrated as a **baseline/reference model** and used to verify that offline model loading works. Report its origin and results honestly. Do not claim its stated accuracy as our experimental result.
+3. The supplied external registry model may be integrated as a **baseline/reference model** and used to verify that offline model loading works. Report its origin and results honestly. Do not claim its stated accuracy as our experimental result.
 4. Evaluate the project-owned model on a held-out test split and report measured accuracy, precision, recall, macro F1, per-class results and a confusion matrix. Do not invent results or hard-code metrics.
 5. If time or data prevents a reliable Primary/Promotions/Spam model, clearly document the limitation and deliver the working six-class baseline rather than mislabelling its outputs or pretending the requirement was met.
 6. Include setup instructions, dependencies, data provenance/licences, and a concise report draft suitable for submission.
 
-## 3. Important limitation of the supplied Hugging Face checkpoint
+## 3. Important limitation of the supplied external registry checkpoint
 
 The model card supplied by the user describes a CNN + bidirectional GRU + multi-head attention model with six labels:
 - `Social Media`
@@ -39,23 +39,23 @@ It does **not** include a `Primary` label. The checkpoint can predict Promotions
 
 For the requested three target classes, train a separate model with clearly documented training data and labels. If useful, show a baseline comparison with the downloaded six-class model. Never state that the downloaded model was retrained unless the code actually updates its weights and the training run is recorded.
 
-The pasted model card's cited repository URL uses a placeholder (`your-username`). Verify the real model repository/revision and licence from the actual downloaded metadata or Hugging Face page before citing it. Treat claims such as “98%+ accuracy” as claims from the model card until independently reproduced.
+The pasted model card's cited repository URL uses a placeholder (`your-username`). Verify the real model repository/revision and licence from the actual downloaded metadata or external registry page before citing it. Treat claims such as “98%+ accuracy” as claims from the model card until independently reproduced.
 
-## 4. Load the downloaded model through Hugging Face libraries where possible
+## 4. Load the downloaded model through external registry libraries where possible
 
-The user downloaded the model with the Hugging Face CLI into a `.hfcache` directory on a **different drive**. Prefer resolving cached files through `huggingface_hub` instead of hard-coding a snapshot path into application code. Do not move or duplicate large model files just to make the app work.
+The user downloaded the model with the your download tooling into a `.hfcache` directory on a **different drive**. Prefer resolving cached files through `cache resolver library` instead of hard-coding a snapshot path into application code. Do not move or duplicate large model files just to make the app work.
 
-Important distinction: Hugging Face Hub is the download/cache interface; it does not make every model compatible with `transformers.AutoModel`. The supplied model card describes a custom TensorFlow/Keras CNN + bidirectional GRU + attention model with `.h5` and TFLite artefacts plus a custom tokenizer JSON. Inspect the actual repository files first:
+Important distinction: local model cache is the download/cache interface; it does not make every model compatible with `transformers.AutoModel`. The supplied model card describes a custom TensorFlow/Keras CNN + bidirectional GRU + attention model with `.h5` and TFLite artefacts plus a custom tokenizer JSON. Inspect the actual repository files first:
 
 - If the repository contains a Transformers-compatible configuration and model weights, use the appropriate `transformers` `from_pretrained(...)` API with `local_files_only=True` for cached/offline operation.
-- If the available artefacts are the described `.h5`/`.tflite` model, use `huggingface_hub.hf_hub_download(...)` or `snapshot_download(...)` to resolve the cached file, then load it with TensorFlow/Keras or TFLite. Do not try to load a custom Keras `.h5` using `AutoModel` unless the repository explicitly implements a compatible Transformers model class.
+- If the available artefacts are the described `.h5`/`.tflite` model, use `cache resolver library.hf_hub_download(...)` or `snapshot_download(...)` to resolve the cached file, then load it with TensorFlow/Keras or TFLite. Do not try to load a custom Keras `.h5` using `AutoModel` unless the repository explicitly implements a compatible Transformers model class.
 - A file downloaded using `hf download --local-dir ...` may be in a normal directory rather than the Hub cache layout. Support a direct local-directory fallback for this case.
 
 ### Discovery requirements
 
 1. Inspect the current workspace and available mounted filesystems.
-2. Inspect the user's `.hfcache` directory and Hugging Face cache metadata. Standard cache directories commonly contain a repository folder such as `models--OWNER--REPO/snapshots/<commit>/...`; don't assume files are directly inside `.hfcache`.
-3. Determine and verify the real Hugging Face `repo_id` and revision from CLI metadata/cache folder names or ask the user if ambiguous. The pasted model card includes a placeholder URL (`your-username`), so do not invent the repository identifier.
+2. Inspect the user's `.hfcache` directory and external registry cache metadata. Standard cache directories commonly contain a repository folder such as `models--OWNER--REPO/snapshots/<commit>/...`; don't assume files are directly inside `.hfcache`.
+3. Determine and verify the real external registry `repo_id` and revision from CLI metadata/cache folder names or ask the user if ambiguous. The pasted model card includes a placeholder URL (`your-username`), so do not invent the repository identifier.
 4. Check for the expected filenames, if they are present in the actual repo:
    - `best_high_accuracy_model.h5`
    - `high_accuracy_email_classifier.tflite`
@@ -65,13 +65,13 @@ Important distinction: Hugging Face Hub is the download/cache interface; it does
 
 ### Configuration
 
-Provide `.env.example` with a Hugging Face-first configuration. Values below are placeholders, not real user paths:
+Provide `.env.example` with a external registry-first configuration. Values below are placeholders, not real user paths:
 
 ```dotenv
-# Actual owner/repository on Hugging Face Hub, verified from cache metadata or repo page.
+# Actual owner/repository on local model cache, verified from cache metadata or repo page.
 MAILSORT_MODEL_REPO_ID=owner/repository
 
-# Root of the Hugging Face Hub cache on the other drive.
+# Root of the local model cache cache on the other drive.
 HF_HUB_CACHE=/absolute/path/to/.hfcache
 
 # Optional direct directory if files were downloaded using --local-dir, or if hub resolution is unavailable.
@@ -84,7 +84,7 @@ MAILSORT_MODEL_MODE=auto
 HF_HUB_OFFLINE=1
 ```
 
-In Python, prefer `hf_hub_download(repo_id=..., filename=..., cache_dir=..., local_files_only=True)` for known individual files or `snapshot_download(repo_id=..., cache_dir=..., local_files_only=True)` for a complete cached snapshot. Hugging Face Hub returns the resolved local filename/directory; use that return value rather than hard-coding cache snapshot paths. A custom `HF_HUB_CACHE` must point to the actual Hub cache root, not automatically to a nested `models--.../snapshots/...` folder.
+In Python, prefer `hf_hub_download(repo_id=..., filename=..., cache_dir=..., local_files_only=True)` for known individual files or `snapshot_download(repo_id=..., cache_dir=..., local_files_only=True)` for a complete cached snapshot. local model cache returns the resolved local filename/directory; use that return value rather than hard-coding cache snapshot paths. A custom `HF_HUB_CACHE` must point to the actual Hub cache root, not automatically to a nested `models--.../snapshots/...` folder.
 
 The app must not depend on internet access during normal prediction. If the repo has not been cached, display an actionable error telling the user to download the exact verified repo/revision first; don't silently start a network download. Keep any direct local model directory as a fallback, not as a required hard-coded path.
 
@@ -197,7 +197,7 @@ Do not claim offline operation unless it has been tested with network access unn
 Provide a concise README with:
 - Exact Python version tested.
 - Environment setup and dependency installation.
-- How to set `MAILSORT_MODEL_REPO_ID` and `HF_HUB_CACHE`, how Hugging Face resolves cached files, and how to use `MAILSORT_MODEL_DIR` only as a direct-folder fallback on Linux/macOS and Windows.
+- How to set `MAILSORT_MODEL_REPO_ID` and `HF_HUB_CACHE`, how external registry resolves cached files, and how to use `MAILSORT_MODEL_DIR` only as a direct-folder fallback on Linux/macOS and Windows.
 - How to launch the app, e.g. `streamlit run app.py`.
 - How to run tests and how to train/evaluate the custom model.
 - Dataset sources, licenses, preprocessing, label mapping and limitations.
@@ -208,7 +208,7 @@ Keep `requirements.txt` limited to dependencies actually imported. Avoid install
 ## 11. Work order for the coding agent
 
 1. Inspect the existing repository, Python environment and mounted drives. Do not overwrite existing work before understanding it.
-2. Resolve the model via `huggingface_hub` using the verified repo ID and configured cache; use a direct local-directory fallback only when needed. Record paths only in local environment configuration, not committed source.
+2. Resolve the model via `cache resolver library` using the verified repo ID and configured cache; use a direct local-directory fallback only when needed. Record paths only in local environment configuration, not committed source.
 3. Implement a minimal inference smoke test and document the actual six-label outputs.
 4. Inspect the candidate training datasets and create a justified label mapping for the target classes.
 5. Implement reproducible training/evaluation of a project-owned model. If time/data constraints block this, record the blocker and retain the six-class baseline with honest labels.

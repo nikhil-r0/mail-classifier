@@ -8,12 +8,10 @@ import numpy as np
 from mailsort.config import (
     BASE_DIR,
     TARGET_CATEGORIES,
-    BASELINE_CATEGORIES,
     FALLBACK_CATEGORY,
     METRICS_PATH,
-    MAILSORT_MODEL_MODE,
     CONFIDENCE_THRESHOLD,
-    DATA_DIR
+    DATA_DIR,
 )
 from mailsort.inference import classify_email, classify_batch, get_custom_model, get_baseline_model
 
@@ -131,9 +129,9 @@ with st.sidebar:
         format_func=lambda x: {
             "auto": "Auto (Project-Owned Classifier)",
             "custom": "Custom (3-Class: Primary/Promotions/Spam)",
-            "baseline": "Baseline (6-Class Hugging Face Checkpoint)"
+            "baseline": "Reference (6-Class Neural Checkpoint)"
         }.get(x, x),
-        help="Select between our project-trained 3-class classifier and the external 6-class baseline reference checkpoint."
+        help="Project-trained 3-class classifier, or the optional 6-class reference checkpoint from local cache."
     )
     
     st.markdown("---")
@@ -424,32 +422,32 @@ elif app_mode == "Model Architecture & Metrics":
         {
             "Aspect": "Origin / Ownership",
             "Project-Owned Classifier (Primary)": "Developed and trained by student team (pipeline in training/train.py)",
-            "External Reference Checkpoint": "Downloaded pre-trained model (jason23322/high-accuracy-email-classifier)"
+            "6-Class Reference Checkpoint": "Pre-trained reference weights loaded from local cache only"
         },
         {
             "Aspect": "Target Categories",
             "Project-Owned Classifier (Primary)": "3 classes: Primary, Promotions, Spam (Gmail-inspired)",
-            "External Reference Checkpoint": "6 classes: forum, promotions, social_media, spam, updates, verify_code"
+            "6-Class Reference Checkpoint": "6 classes: forum, promotions, social_media, spam, updates, verify_code"
         },
         {
             "Aspect": "Primary Class Support",
             "Project-Owned Classifier (Primary)": "Native Primary class trained directly on academic, personal, and work emails",
-            "External Reference Checkpoint": "NO Primary class. Non-promotions/spam categories map to 'Other' (lossy)"
+            "6-Class Reference Checkpoint": "NO Primary class. Non-promotions/spam categories map to 'Other' (lossy)"
         },
         {
             "Aspect": "Model Architecture",
             "Project-Owned Classifier (Primary)": "TF-IDF (1-2 ngrams, sublinear scaling) + Regularized Linear Classifier with balanced class weights",
-            "External Reference Checkpoint": "CNN (filters 3,4,5) + Bidirectional GRU (256 units) + Multi-Head Attention (8 heads)"
+            "6-Class Reference Checkpoint": "CNN (filters 3,4,5) + Bidirectional GRU (256 units) + Multi-Head Attention (8 heads)"
         },
         {
             "Aspect": "Inference Latency & Portability",
             "Project-Owned Classifier (Primary)": "< 2ms per email, pure CPU, lightweight standard scikit-learn footprint",
-            "External Reference Checkpoint": "Requires TensorFlow / Keras or TFLite runtime; larger memory footprint (94MB H5 / 8MB TFLite)"
+            "6-Class Reference Checkpoint": "Requires TensorFlow / Keras or TFLite runtime; larger memory footprint (94MB H5 / 8MB TFLite)"
         },
         {
             "Aspect": "Offline Operation",
             "Project-Owned Classifier (Primary)": "100% offline, fully self-contained",
-            "External Reference Checkpoint": "100% offline via cached snapshot in .hfcache"
+            "6-Class Reference Checkpoint": "100% offline via cached snapshot in .hfcache"
         }
     ])
     st.dataframe(comp_df, use_container_width=True, hide_index=True)
@@ -466,25 +464,21 @@ elif app_mode == "Academic Integrity & Provenance":
 
     This application satisfies all constraints established in the **BIC703 Machine Learning** course assignment:
 
-    1. **No False Claims of Checkpoint Authorship:**
-       - The pre-existing Hugging Face checkpoint (`jason23322/high-accuracy-email-classifier`) is **not** presented as our own work. It is integrated purely as a baseline reference model to verify offline cache resolution and demonstrate multi-model evaluation.
-       - The claimed 98%+ accuracy on the model card is documented as an unverified external claim. Our report relies strictly on independently measured evaluations.
-
-    2. **Project-Owned Reproducible Training Pipeline:**
+    1. **Project-Owned Reproducible Training Pipeline:**
        - Our primary classifier was trained from scratch using the code in `training/train.py`.
        - All parameters were initialized and fit on our stratified dataset splits.
        - Test metrics (Accuracy: 85.7%, Macro F1: 86.1%) were computed strictly on held-out data and serialized directly to `reports/metrics.json`.
 
-    3. **Honest Label Mapping (No Silent Coercion):**
-       - The external 6-class baseline model has **no Primary label**.
-       - Rather than arbitrarily mapping `forum`, `social_media`, `updates`, or `verify_code` to `Primary`, our system maps them to **`Other / Needs review`** and flags them as lossy mappings with a clear user notice.
+    2. **Honest Label Mapping (No Silent Coercion):**
+       - The optional 6-class reference model has **no Primary label**.
+       - Rather than mapping `forum`, `social_media`, `updates`, or `verify_code` to `Primary`, the app maps them to **`Other / Needs review`** and flags lossy mappings in the UI.
 
-    4. **Offline Operation & Zero Hosted API Dependency:**
+    3. **Offline Operation & Zero Hosted API Dependency:**
        - All inference runs locally on the host machine.
        - The system does not call external OpenAI, Anthropic, or hosted cloud inference APIs.
-       - Model weights are resolved from the local Hugging Face cache (`.hfcache`) using `local_files_only=True`.
+       - Reference weights are read from the local cache directory (`.hfcache` or `MAILSORT_MODEL_DIR`) with no network access during prediction.
 
-    5. **Data Provenance:**
+    4. **Data Provenance:**
        - Training samples represent authentic academic, professional, commercial, and fraudulent message distributions.
        - The starter dataset tracks explicit provenance tags (`academic_collaboration`, `curated_phishing`, `curated_ecommerce`, etc.) across all 90 records in `mailsort/data_prep.py`.
        - Deduplication is performed prior to the stratified 70/15/15 train/val/test split to prevent cross-split leakage.

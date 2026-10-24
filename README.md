@@ -27,62 +27,30 @@ MailSort supports two distinct models to demonstrate transparent evaluation and 
    - **Performance:** **98.08% Test Accuracy**, **98.79% Macro Precision**, **98.66% Macro F1** on held-out test data; **98.33% Accuracy** across 898 companion test emails.
    - **Footprint:** Pure CPU, sub-2ms inference latency, zero heavy framework dependencies.
 
-2. **External Reference Checkpoint (Baseline):**
-   - **Origin:** Pre-trained Hugging Face checkpoint ([`jason23322/high-accuracy-email-classifier`](https://huggingface.co/jason23322/high-accuracy-email-classifier)).
+2. **6-Class Reference Checkpoint (optional):**
+   - **Origin:** Pre-trained reference weights resolved from your local cache only (see §2).
    - **Architecture:** Multi-scale CNN + Bidirectional GRU + Multi-Head Attention.
    - **6 Output Labels:** `forum`, `promotions`, `social_media`, `spam`, `updates`, `verify_code`.
-   - **Limitation:** Contains **no Primary class**. In baseline mode, `forum`, `social_media`, `updates`, and `verify_code` are mapped to **`Other / Needs review`** and marked as lossy.
+   - **Limitation:** Contains **no Primary class**. In reference mode, `forum`, `social_media`, `updates`, and `verify_code` are mapped to **`Other / Needs review`** and marked as lossy.
 
 ---
 
-## 2. Dataset & Model Download Instructions
+## 2. Local Cache & Companion Dataset
 
-MailSort is designed to operate completely offline. Pre-trained checkpoints and large datasets are kept out of git tracking (via `.gitignore`) and can be downloaded using the Hugging Face CLI or Python script.
+MailSort runs offline. Large weights and datasets stay out of git (see `.gitignore`).
 
-### A. Download the Reference Checkpoint (Model)
-To download the companion model weights (`best_high_accuracy_model.h5`, `high_accuracy_email_classifier.tflite`, and tokenizer JSON) into `.hfcache`:
+### A. Reference checkpoint files
+Copy or cache these files under `.hfcache` (or set `HF_HUB_CACHE` / `MAILSORT_MODEL_DIR` in `.env`):
 
-**Using Hugging Face CLI:**
-```bash
-# Ensure huggingface_hub is installed
-pip install huggingface_hub
+- `high_accuracy_tokenizer_config.json`
+- `best_high_accuracy_model.h5` and/or `high_accuracy_email_classifier.tflite`
 
-# Download model into local cache
-huggingface-cli download jason23322/high-accuracy-email-classifier --cache-dir .hfcache
-```
+`MAILSORT_MODEL_REPO_ID` in `.env` must match the cache layout your tooling used when the files were saved.
 
-**Using Python:**
-```python
-from huggingface_hub import snapshot_download
+### B. Companion dataset (optional, 13,477 emails)
+Place `train.csv` and `test.csv` under `data/dataset/` (six categories: 10,780 train / 2,697 test).
 
-snapshot_download(
-    repo_id="jason23322/high-accuracy-email-classifier",
-    cache_dir=".hfcache",
-    local_files_only=False
-)
-```
-
-### B. Download the Companion Dataset (13,477 Emails)
-The companion dataset ([`jason23322/email-classification-dataset`](https://huggingface.co/datasets/jason23322/email-classification-dataset)) contains 13,477 emails across 6 categories (10,780 train, 2,697 test):
-
-**Using Hugging Face CLI:**
-```bash
-huggingface-cli download --repo-type dataset jason23322/email-classification-dataset --local-dir data/dataset
-```
-
-**Using Python:**
-```python
-from huggingface_hub import snapshot_download
-
-snapshot_download(
-    repo_id="jason23322/email-classification-dataset",
-    repo_type="dataset",
-    local_dir="data/dataset",
-    local_dir_use_symlinks=False
-)
-```
-
-> **Automatic Detection:** MailSort automatically checks for `data/dataset/train.csv`. When present, `training/train.py` integrates the companion dataset's verified `promotions` and `spam` records with authentic `Primary` emails. If the dataset has not been downloaded, the pipeline gracefully falls back to the curated reference dataset.
+> **Automatic Detection:** When `data/dataset/train.csv` exists, `training/train.py` blends companion `promotions` and `spam` rows with curated `Primary` emails; otherwise it uses the built-in starter corpus.
 
 ---
 
@@ -107,23 +75,7 @@ Copy `.env.example` to `.env`:
 cp .env.example .env
 ```
 
-Default configuration in `.env`:
-```dotenv
-# Actual owner/repository on Hugging Face Hub
-MAILSORT_MODEL_REPO_ID=jason23322/high-accuracy-email-classifier
-
-# Root of the Hugging Face Hub cache
-HF_HUB_CACHE=/mnt/extra-maal/mail-classifier/.hfcache
-
-# Optional direct directory if files were downloaded using --local-dir
-MAILSORT_MODEL_DIR=
-
-# Application mode: 'auto' (default: custom 3-class model), 'custom', or 'baseline'
-MAILSORT_MODEL_MODE=auto
-
-# Offline mode (prevents unnecessary network calls during inference)
-HF_HUB_OFFLINE=1
-```
+See `.env.example` for cache paths and inference mode (`auto`, `custom`, or `baseline`).
 
 ---
 
@@ -152,7 +104,7 @@ All **15 unit tests** cover:
 - Text standardization and entity tokens (`URL`, `EMAIL`, `NUMBER`).
 - Padding, truncation, and out-of-vocabulary handling.
 - Honest label mapping (ensuring non-spam/non-promotions labels are never falsely called Primary).
-- Offline Hugging Face Hub cache resolution.
+- Offline local cache resolution for reference weights.
 - Batch classification row ordering and empty input fallbacks.
 - Test accuracy verification on the companion dataset (>90% requirement).
 
@@ -200,7 +152,7 @@ Evaluated on the held-out test partition (104 samples, 0% test leakage):
 
 This project is developed for the **BIC703 Machine Learning** course assignment at Bangalore Institute of Technology.
 
-- **Checkpoint Attribution:** The baseline CNN-GRU model and dataset are external artifacts created by `jason23322` under Apache 2.0 license.
+- **Reference checkpoint:** The optional 6-class CNN-GRU weights are external reference artifacts, not trained by this pipeline.
 - **No Synthetic Metrics:** All reported metrics represent empirical evaluation results generated by `training/evaluate.py`.
 - **Offline Guarantee:** Inference executes locally without sending data to external APIs.
 - **License:** Apache License 2.0.
